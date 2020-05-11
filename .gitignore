@@ -1,0 +1,5 @@
+__pycache__/
+database.db
+.vscode/
+.env/
+.DS_Store
