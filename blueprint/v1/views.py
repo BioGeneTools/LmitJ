@@ -10,12 +10,24 @@ routes = Blueprint('routes_v1', __name__)
 api = Api(routes)
 
 class userObject():
+    """User object for jwt identity
+    :param `id`:
+    :type id: int 
+    :param `username`:
+    :type username: str
+    """
     def __init__(self, id, username):
         self.id = id
         self.username = username
 
 # Auth routes
 class Login(Resource):
+    """Resource to login and returns access_token
+    :param `username`:
+    :type username: str
+    :param `password`:
+    :type username: str
+    """
     parser = reqparse.RequestParser()
     parser.add_argument('username', 
     type = str,required=True, help="username should not be empty"
@@ -24,15 +36,16 @@ class Login(Resource):
     type = str,required=True, help="password should not be empty"
     )
     def post(self):
+        """Takes username and password to return an access_token"""
         data = self.parser.parse_args()   
         user = User.query.filter(User.username==data['username']).first()
         if user and check_password_hash(user.password, data['password']):
             access_token = create_access_token(identity=userObject(user.id, user.username))
-            print(f"----------- {get_jwt_identity()}")
             return {"access_token":access_token}, 200
         return {"message": "Bad username or password"}, 401
 
 class Register(Resource):
+    """Resource to register a new user."""
     parser = reqparse.RequestParser()
     parser.add_argument('username', 
     type = str,required=True, help="username should not be empty"
@@ -55,9 +68,7 @@ class DeleteUser(Resource):
     pass
 
 class DeleteUser_resetall(Resource):
-    """
-    This will delete all users in the User table
-    """
+    """This will delete all users in the User table"""
     def delete(self):
         user = User.query.all()
         for u in user:
@@ -76,26 +87,33 @@ class Dictionary(Resource):
     """To handle CRUD with Vocabularies table"""
     @jwt_required
     def get(self):
-        thisuser = get_jwt_identity()
-        v = Vocabularies.query.filter(Vocabularies.voc_id==thisuser['id']).all()
+        current_user = get_jwt_identity()
+        v = Vocabularies.query.filter(Vocabularies.voc_id==current_user['id']).all()
         if v:
-            return [{"_id":i.id, "word":i.word, "sentence":i.sentence} for i in v], 200
+            return {"dictionary": [{"_id":i.id, "word":i.word, "sentence":i.sentence} for i in v]}, 200
         return {"message": "your dictionary is empty"}, 401
 
     @jwt_required
     def post(self):
-        # parser = reqparse.RequestParser()
-        # parser.add_argument('journal_link', 
-        # type = str, required=True, help="Link is missing"
-        # )
-        thisuser = get_jwt_identity()
-        u = User.query.filter_by(id=thisuser['id']).first()
-        v = VocabularCollector()
-        vv = v.crawLink('https://www.spiegel.de/wissenschaft/medizin/corona-reicht-es-wenn-sich-die-risikogruppe-an-kontaktbeschraenkungen-haelt-a-fb7ffc88-a34c-4c35-a020-aebad6d02c03')
-        for i in vv:
-            ii = Vocabularies.query.filter_by(word=i).first()
-            vvv = Vocabularies(word=i, sentence="", voc=u)
-            db.session.add(vvv)
+        """requests a link to scrape"""
+        parser = reqparse.RequestParser()
+        parser.add_argument('journal_name',
+        type = str, required=True, help="Name is missing"
+        )
+        parser.add_argument('journal_link', 
+        type = str, required=True, help="Link is missing"
+        )
+        data = parser.parse_args()
+        current_user = get_jwt_identity()
+        u_id = User.query.filter_by(id=current_user['id']).first()
+        crawled_link = VocabularCollector(data).crawl # this class returns a list of dict.
+        if "error" in crawled_link:
+            return crawled_link, 500
+        _voc_objects = [] # a list of Vocabularies objects for insertion
+        for word in crawled_link:
+            if not Vocabularies.query.filter_by(word=word['word']).first(): # if word not exist in db
+                _voc_objects.append(Vocabularies(word=word['word'], sentence=word['sentence'], voc=u_id))
+        db.session.add_all(_voc_objects) # inserts a bulk of objects into the db.
         db.session.commit()
         return {"message": "The article was successfully scraped"}, 200
 

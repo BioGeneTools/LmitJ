@@ -1,55 +1,74 @@
-"""
-This script takes a link of a journal article and returns a dictionary
-"""
-
 import requests
 from bs4 import BeautifulSoup
 
 class VocabularCollector():
-    TheHeadLine = []
+    """Receives an article link and returns a dict of words and other parameters
+
+    parameters:
+    journal_name:
+    journal_link: the link of the article to be scraped.
+    : returns: a list of dictionaries e.g. {"word":"", "sentence:""}
+    """
     newVoc = []
-    def __init__(self):
-        pass
-    
-    def crawLink(self, link):
-        page = requests.get("{}".format(link))
+    def __init__(self, data):
+        self.name = data['journal_name']
+        self.link = data['journal_link']
+
+    @property
+    def crawl(self):
+        """Checks which journal the links belongs."""
+        page = self.requests_object(self.link)
+        if isinstance(page, dict): # if requests failed, returns a dictionary of error detail rather than requests object
+            return page
         soup = BeautifulSoup(page.content, 'html.parser')
+        return self.build_Dictionary(soup)
 
-        # for NW.de
-        # headline = soup.find_all(class_="article-detail-headline")[0]
-        # headline = list(headline.children)[2].replace('\n','')
-        # self.TheHeadLine = headline.split(' ')
-        # for i in soup.find_all("p", class_="em_text")[0].get_text().split(' '):
-        #     i = i.replace('"', '').replace('.','').replace(',','').replace('(','').replace(')','').replace('–','').replace('„','').strip()
-        #     if i and len(i)>1 and not i.isnumeric() and not any(x in "@#$%&*?/" for x in i) and i not in self.mainDict and i not in self.referenceDictList and i not in self.newVoc:
-        #         self.newVoc.append(i)
-
-        # for Spiegel
-        p = []
-        for i in soup.find_all("p"):
-            for n in i.get_text().replace('\n','').strip().split():
-                p.append(n)
-        for i in p:
-            i = i.replace('"', '').replace('.','').replace(',','').replace('(','').replace(')','').replace('–','').replace('„','').strip()
-            if i and len(i)>1 and not i.isnumeric() and not any(x in "@#$%&*?/" for x in i) and i not in self.newVoc:
-                self.newVoc.append(i)
-        return self.newVoc
+    def build_Dictionary(self, soup):
+        """To scrape articles from Spiegel journal"""
+        _p_texts = []
+        _words_list = []
+        _wordsToBeSkipped = ["_localized"]
+        _refined = []
         
-    def getSentence(self, j):
-        l = len(self.newVoc)
-        start = j-3
-        end = j+4
+        if self.name == "Spiegel":
+            import re
+            regex = re.compile('RichText RichText--iconLinks')
+            for div in soup.find_all("div", {"class": regex}): _p_texts.append(div.p.text.replace('\n','').strip())  
+        elif self.name == "Tagesschau":
+            for div in soup.find_all("div", class_="mod modA modParagraph"):
+                for p in div.find_all("p", class_="text small"): _p_texts.append(p.text.replace('\n','').strip())
+        else: return {"error": "provided journal is not known"}
+
+        for p_text in _p_texts:
+            p_text_list = p_text.split(" ")
+            for index, eachWord in enumerate(p_text_list):
+                for char in '".,()-„': eachWord=eachWord.replace(char, '')
+                eachWord = eachWord.strip()
+                if eachWord and len(eachWord)>1 and eachWord not in _words_list and not eachWord.isnumeric() and not any(x in "_@#$%&*?/" for x in eachWord):
+                    _refined.append({"word": eachWord, "sentence": self.extractSentence(index, p_text_list)})
+        
+        return _refined
+        
+    def extractSentence(self, index, p_tags):
+        """To re-construct the sentence that a word belongs."""
+        p_length = len(p_tags)
+        start = index-3; end = index+4
         if start < 0:
             start = 0
-        elif end > len(self.newVoc):
-            end = len(self.newVoc)
-        return ' '.join(self.newVoc[start:end]) 
+        if end > p_length:
+            end = p_length
+        return ' '.join(p_tags[start:end]) 
 
-
-# page = requests.get("http://www.nrttv.com/News.aspx?id=19543&MapID=1")
-# soup = BeautifulSoup(page.content, 'html.parser')
-# s = soup.find_all(class_="article-detail-headline")[0]
-# s = list(s.children)[2]
-# s.replace('\n','')
-# for i in soup.find_all(class_="em_text"):
-#     print(i.get_text())
+    def requests_object(self, link):
+        """Gets the link content through bs4 and returns an object"""
+        try:
+            page = requests.get("{}".format(link))
+        except requests.exceptions.HTTPError as err:
+            return {"error":"Http"}
+        except requests.exceptions.ConnectionError as err:
+            return {"error":"Connection"}
+        except requests.exceptions.Timeout as err:
+            return {"error":"Timeout"}
+        except requests.exceptions.RequestException as err:
+            return {"error":"RequestException"}
+        return page
