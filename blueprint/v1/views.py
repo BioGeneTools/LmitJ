@@ -9,12 +9,12 @@ from .crawl import VocabularCollector
 routes = Blueprint('routes_v1', __name__)
 api = Api(routes)
 
-class userObject():
+class UserObject():
     """User object for jwt identity
-    :param `id`:
-    :type id: int 
-    :param `username`:
-    :type username: str
+
+    Args:
+        id (int)
+        username (str)
     """
     def __init__(self, id, username):
         self.id = id
@@ -23,10 +23,12 @@ class userObject():
 # Auth routes
 class Login(Resource):
     """Resource to login and returns access_token
-    :param `username`:
-    :type username: str
-    :param `password`:
-    :type username: str
+
+    /auth
+
+    Args:
+        username (str)
+        password (str)
     """
     parser = reqparse.RequestParser()
     parser.add_argument('username', 
@@ -40,12 +42,15 @@ class Login(Resource):
         data = self.parser.parse_args()   
         user = User.query.filter(User.username==data['username']).first()
         if user and check_password_hash(user.password, data['password']):
-            access_token = create_access_token(identity=userObject(user.id, user.username))
+            access_token = create_access_token(identity=UserObject(user.id, user.username))
             return {"access_token":access_token}, 200
         return {"message": "Bad username or password"}, 401
 
 class Register(Resource):
-    """Resource to register a new user."""
+    """Resource to register a new user.
+
+    /auth/register 
+    """
     parser = reqparse.RequestParser()
     parser.add_argument('username', 
     type = str,required=True, help="username should not be empty"
@@ -55,8 +60,8 @@ class Register(Resource):
     )
     def post(self):
         data = self.parser.parse_args()
-        u = User.query.filter_by(username=data['username']).first()
-        if u:
+        user = User.query.filter_by(username=data['username']).first()
+        if user:
             return {"message": "user is already exist"}, 400
         new_user = User(username=data['username'], password=generate_password_hash(data['password'], "sha256"))
         db.session.add(new_user)
@@ -78,15 +83,19 @@ class DeleteUser_resetall(Resource):
         return {"message": "all data were deleted"}, 200
 
 class Logout(Resource):
-
+    """Logs out the user"""
     def post(self):
         pass
 
 # Dictionary routes
 class Dictionary(Resource):
-    """To handle CRUD with Vocabularies table"""
+    """To handle CRUD with Vocabularies table
+    
+    /dict
+    """
     @jwt_required
     def get(self):
+        """Queries all the words related to the user"""
         current_user = get_jwt_identity()
         v = Vocabularies.query.filter(Vocabularies.voc_id==current_user['id']).all()
         if v:
@@ -118,6 +127,7 @@ class Dictionary(Resource):
         return {"message": "The article was successfully scraped"}, 200
 
     def delete(self):
+        """deletes a word in the dictionary"""
         pass
 
 class Dictionary_resetall(Resource):
@@ -130,7 +140,7 @@ class Dictionary_resetall(Resource):
         return {"message": "The database is empty"}, 200
 
 class J_insert(Resource):
-    """To insert the journals that available to be scraped"""
+    """To insert the journals that can be scraped"""
     parser = reqparse.RequestParser()
     parser.add_argument('journal_name', 
     type = str, required=True, help="Name should not be empty"
