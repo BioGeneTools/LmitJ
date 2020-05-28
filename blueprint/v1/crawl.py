@@ -3,11 +3,13 @@ from bs4 import BeautifulSoup
 
 class VocabularCollector():
     """Receives an article link and returns a dict of words and other parameters
-
-    parameters:
-    journal_name:
-    journal_link: the link of the article to be scraped.
-    : returns: a list of dictionaries e.g. {"word":"", "sentence:""}
+    
+    Args:
+        journal_name (str): The journal name.
+        journal_link (str): the link of the article to be scraped.
+    
+    Returns:
+        A list of dictionaries e.g. {"word":"", "sentence:""}
     """
     newVoc = []
     def __init__(self, data):
@@ -24,7 +26,11 @@ class VocabularCollector():
         return self.build_Dictionary(soup)
 
     def build_Dictionary(self, soup):
-        """To scrape articles from Spiegel journal"""
+        """To scrape articles from Spiegel journal
+        
+        Args:
+            soup (obj): A beautifulsoup object. 
+        """
         _p_texts = []
         _words_list = []
         _wordsToBeSkipped = ["_localized"]
