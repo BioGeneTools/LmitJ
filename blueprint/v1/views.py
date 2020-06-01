@@ -66,7 +66,7 @@ class Register(Resource):
         new_user = User(username=data['username'], password=generate_password_hash(data['password'], "sha256"))
         db.session.add(new_user)
         db.session.commit()
-        return {"message": "new user has been successfully registered"}, 200
+        return {"message": "new user has been successfully registered"}, 201
 
 class DeleteUser(Resource):
     """To delete the active user with vocabularies related to this user"""
