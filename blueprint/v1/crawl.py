@@ -68,7 +68,7 @@ class VocabularCollector():
     def requests_object(self, link):
         """Gets the link content through bs4 and returns an object"""
         try:
-            page = requests.get("{}".format(link))
+            page = requests.get(f"{link}")
         except requests.exceptions.HTTPError as err:
             return {"error":"Http"}
         except requests.exceptions.ConnectionError as err:
