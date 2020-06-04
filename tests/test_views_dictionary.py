@@ -10,5 +10,5 @@ class TestDictionary(BasicTestCase):
                     data={"username": "Aname", "password": "Pass"})
                 response_auth = client.post('/v1.0/auth', data={"username": "Aname", "password": "Pass"})
                 response = client.get('/v1.0/dict', headers={'Authorization': f'Bearer {response_auth.get_json()["access_token"]}'})
-                self.assertEqual(response.status_code, 401)
+                self.assertEqual(response.status_code, 404)
                 self.assertDictEqual(response.get_json(), {"message": "your dictionary is empty"})
