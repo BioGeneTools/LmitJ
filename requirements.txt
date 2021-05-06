@@ -16,7 +16,7 @@ cssselect==1.1.0
 fake-useragent==0.1.11
 flake8==3.8.2
 Flask==1.1.2
-Flask-Cors==3.0.8
+Flask-Cors==3.0.9
 Flask-JWT-Extended==3.24.1
 Flask-Migrate==2.5.3
 Flask-RESTful==0.3.8
